@@ -1,0 +1,1191 @@
+local Version = "1.6.54"
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/" .. Version .. "/main.lua"))()
+local discord = "https://discord.gg/qTAhZpvtgt"
+local Players         = game:GetService("Players")
+local HttpService     = game:GetService("HttpService")
+local LocalPlayer     = Players.LocalPlayer
+local RunService      = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser     = game:GetService("VirtualUser")
+local TweenService    = game:GetService("TweenService")
+local UIS             = game:GetService("UserInputService")
+local RS              = game:GetService("ReplicatedStorage")
+local function gradient(t)
+    local r = ""
+    local c = {
+        Color3.fromRGB(255, 200, 50),
+        Color3.fromRGB(255, 170, 30),
+        Color3.fromRGB(255, 140, 20),
+        Color3.fromRGB(230, 120, 15),
+        Color3.fromRGB(200, 100, 10),
+    }
+    local clean = t:gsub("[^%w]", "")
+    local len   = #clean
+    local index = 1
+    for i = 1, #t do
+        local ch = t:sub(i,i)
+        if ch:match("[%w]") then
+            local x    = (index-1) / math.max(len-1, 1)
+            local pos  = x * (#c - 1)
+            local low  = math.clamp(math.floor(pos)+1, 1, #c)
+            local high = math.clamp(low+1, 1, #c)
+            local c1, c2 = c[low], c[high]
+            local blend  = pos % 1
+            local rR = c1.R + (c2.R-c1.R)*blend
+            local rG = c1.G + (c2.G-c1.G)*blend
+            local rB = c1.B + (c2.B-c1.B)*blend
+            r = r .. string.format('<font color="rgb(%d,%d,%d)">%s</font>', rR*255, rG*255, rB*255, ch)
+            index = index + 1
+        else
+            r = r .. ch
+        end
+    end
+    return r
+end
+local function notify(text, dur)
+    WindUI:Notify({ Title = "Rezo Hub", Content = text, Duration = dur or 3, Icon = "zap" })
+end
+local function SafeRequest(requestData)
+    local success, result = pcall(function()
+        if syn and syn.request then
+            return syn.request(requestData)
+        elseif request and type(request) == "function" then
+            return request(requestData)
+        elseif http and http.request then
+            return http.request(requestData)
+        else
+            local body = HttpService:GetAsync(requestData.Url)
+            return { Body = body, StatusCode = 200, Success = true }
+        end
+    end)
+    if success then return result
+    else return { Body = "{}", StatusCode = 0, Success = false } end
+end
+local function RetryRequest(requestData, retries)
+    retries = retries or 2
+    for i = 1, retries do
+        local result = SafeRequest(requestData)
+        if result and result.StatusCode == 200 then return result end
+        task.wait(1)
+    end
+    return { Success = false }
+end
+WindUI:AddTheme({
+    Name        = "Amber",
+    Dialog      = Color3.fromHex("#2D1B00"),
+    Outline     = Color3.fromHex("#B87D0B"),
+    Text        = Color3.fromHex("#FFFFFF"),
+    Placeholder = Color3.fromHex("#4A2E00"),
+    Background  = Color3.fromHex("#1F1200"),
+    Button      = Color3.fromHex("#E69500"),
+    Icon        = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#FFD700"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#FF8C00"), Transparency = 0 },
+    }, { Rotation = 0 }),
+})
+local Window = WindUI:CreateWindow({
+    Title                  = gradient("Rezo Hub - Sell Lemons"),
+    Author                 = "Script Loader | lwkmash",
+    Folder                 = "RezoHub",
+    Size                   = UDim2.fromOffset(650, 420),
+    Transparent            = true,
+    Resizable              = true,
+    Theme                  = "Amber",
+    SideBarWidth           = 210,
+    Background             = "rbxassetid://78380393396875",
+    BackgroundTransparency = 0.65,
+    HideSearchBar          = false,
+    ScrollBarEnabled       = true,
+})
+Window:Tag({
+    Title  = "v2.5",
+    Color  = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#FFD700"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#FF8C00"), Transparency = 0 },
+    }, { Rotation = 45 }),
+    Radius = 13,
+})
+Window:Tag({
+    Title  = "TUFF VeR",
+    Color  = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#00FF00"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#FFFF00"), Transparency = 0 },
+    }, { Rotation = 45 }),
+    Radius = 13,
+})
+Window:EditOpenButton({
+    Title           = gradient("Open (Rezo ON TOP)"),
+    CornerRadius    = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color           = ColorSequence.new(Color3.fromHex("FFD700"), Color3.fromHex("FF8C00")),
+    OnlyMobile      = false,
+    Enabled         = true,
+    Draggable       = true,
+})
+Window:SetBackgroundImageTransparency(0.65)
+Window:Dialog({
+    Icon    = "house",
+    Title   = "Rezo Hub Official",
+    Content = "Welcome to Rezo Hub!\nThe ultimate Sell Lemons automation hub. Join our Discord for updates and support!",
+    Buttons = {
+        { Title = "Join Discord",  Callback = function() setclipboard(discord) end },
+        { Title = "Dismiss", Callback = function() end },
+    },
+})
+Window:Dialog({
+    Icon    = "shield",
+    Title   = "Official Only!",
+    Content = "The only real Rezo Hub is at (discord). Owner: lwkmash. Do not use or claim this as your own script!",
+    Buttons = {
+        { Title = "I agree!",    Callback = function() notify("Welcome aboard!") end },
+        { Title = "I agree (don't click this)", Callback = function() notify("you're gonna get hunted by mash") end },
+    },
+})
+local function findTycoon()
+    for _, v in pairs(workspace:GetChildren()) do
+        if v:IsA("Folder") and v.Name:match("Tycoon%d") then
+            if v:FindFirstChild("Owner") and v.Owner.Value == LocalPlayer then
+                return v
+            end
+        end
+    end
+end
+if not game:IsLoaded() then game.Loaded:Wait() end
+local userTycoon
+local _tStart = tick()
+repeat
+    userTycoon = findTycoon()
+    if not userTycoon then task.wait(0.5) end
+until userTycoon or tick() - _tStart > 30
+if not userTycoon then
+    notify("Tycoon not found (waited 30s)!", 5)
+    return
+end
+local Tycoon
+local CompClass = {}
+pcall(function()
+    Tycoon = require(RS.Modules.Tycoon.Tycoon)
+    CompClass.Balances    = require(RS.Modules.Tycoon.Component.Client.ClientTycoonBalances)
+    CompClass.Rebirth     = require(RS.Modules.Tycoon.Component.Client.ClientTycoonRebirth)
+    CompClass.Ascension   = require(RS.Modules.Tycoon.Component.Client.ClientTycoonAscension)
+    CompClass.PhoneOffers = require(RS.Modules.Tycoon.Component.Client.ClientTycoonPhoneOffers)
+end)
+local function comp(class)
+    if not (Tycoon and class) then return nil end
+    local ok, c = pcall(function()
+        local lt = Tycoon.getLocal()
+        return lt and lt:GetComponent(class)
+    end)
+    return ok and c or nil
+end
+local AutoBuy = false
+local AutoUpgrade = false
+local AutoFruit = false
+local AutoRebirth = false
+local AutoEvolve = false
+local AutoPowerLevel = false
+local AutoAscend = false
+local AutoPhoneOffers = false
+local AutoCollectCash = false
+local AutoCollectCosmic = false
+local AutoSewerRun = false
+local AutoPullLevers = false
+local AutoNPCDeals = false
+local AutoForeverPurchase = false
+local AutoCollectBadges = false
+local AutoSpeedUpgrade = false
+local AutoCapacityUpgrade = false
+local AutoManagerHire = false
+local AutoStairway = false
+local AutoEvolutionPoints = false
+local AutoCosmicCashFarm = false
+local AutoPurityFruit = false
+local AutoUFOKey = false
+local AutoSewerKey = false
+local AutoGoodSamaritan = false
+local AutoCosmicFarmer = false
+local AutoHiddenBadges = false
+local AutoLeverSequence = false
+local AutoCashBags = false
+local AutoLemonDash = false
+local AutoDepot = false
+local AutoTrading = false
+local AutoLab = false
+local AutoRobotics = false
+local AutoRepublic = false
+local AutoLemonX = false
+local AutoOfflineOptimizer = false
+local AutoInvestorMax = false
+local AutoDealCounter = false
+local AutoAlienInvestor = false
+local AutoPowerUnlock = false
+local AutoRunFast = false
+local AutoBuyRemotely = false
+local AutoDoubleSpeed = false
+local WalkSpeed = 16
+local JumpPower = 50
+local InfiniteJump = false
+local Noclip = false
+local AutoRejoin = false
+local AntiAFK = true
+local AutoServerHop = false
+local AutoFPSBoost = false
+local AutoLowGraphics = false
+local AutoHideName = false
+local AutoAntiKick = false
+local AutoAntiLog = false
+local stats = { buys = 0, upgrades = 0, fruit = 0, rebirths = 0, evolves = 0, ascends = 0, phone = 0, cash = 0, cosmic = 0, badges = 0, managers = 0, powers = 0, deals = 0, investors = 0, aliens = 0, levers = 0, keys = 0, bags = 0, purity = 0 }
+local InviteCode = "qTAhZpvtgt"
+local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+local IntroTab = Window:Tab({ Title = gradient("Introduction"), Icon = "house" })
+IntroTab:Section({ Title = "- Welcome to Rezo Hub -" })
+IntroTab:Paragraph({ Title = gradient("Community"), Content = "" })
+local function LoadDiscordInfo()
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(RetryRequest({
+            Url    = DiscordAPI,
+            Method = "GET",
+            Headers = { ["User-Agent"] = "RobloxBot/1.0", ["Accept"] = "application/json" }
+        }).Body)
+    end)
+    if success and result and result.guild then
+        local DiscordInfo = IntroTab:Paragraph({
+            Title     = result.guild.name,
+            Desc      = ' <font color="#52525b"></font> Member Count : ' .. tostring(result.approximate_member_count) ..
+                        '\n <font color="#16a34a"></font> Online Count : ' .. tostring(result.approximate_presence_count),
+            Image     = "https://cdn.discordapp.com/icons/" .. result.guild.id .. "/" .. result.guild.icon .. ".png?size=1024",
+            ImageSize = 42,
+        })
+        IntroTab:Button({
+            Title    = "Update Discord Info",
+            Callback = function()
+                local ok, updated = pcall(function()
+                    return HttpService:JSONDecode(RetryRequest({ Url = DiscordAPI, Method = "GET" }).Body)
+                end)
+                if ok and updated and updated.guild then
+                    DiscordInfo:SetDesc(
+                        ' <font color="#52525b"></font> Member Count : ' .. tostring(updated.approximate_member_count) ..
+                        '\n <font color="#16a34a"></font> Online Count : ' .. tostring(updated.approximate_presence_count)
+                    )
+                    WindUI:Notify({ Title = "Discord Info Updated", Content = "Successfully refreshed Discord statistics", Duration = 2, Icon = "refresh-cw" })
+                else
+                    WindUI:Notify({ Title = "Update Failed", Content = "Could not refresh Discord info", Duration = 3, Icon = "alert-triangle" })
+                end
+            end,
+        })
+    else
+        IntroTab:Paragraph({ Title = "Discord info unavailable", Desc = "Could not fetch server stats.", Color = "Red" })
+    end
+end
+IntroTab:Button({
+    Title    = "Copy Discord Invite",
+    Callback = function()
+        setclipboard("https://discord.gg/" .. InviteCode)
+        WindUI:Notify({ Title = "Copied!", Content = "Discord invite copied to clipboard", Duration = 2, Icon = "clipboard-check" })
+    end,
+})
+IntroTab:Button({
+    Title    = "Rezo Hub - Official Discord",
+    Callback = function()
+        setclipboard("https://discord.gg/qTAhZpvtgt")
+        WindUI:Notify({ Title = "Copied!", Content = "Discord link copied to clipboard!", Duration = 3, Icon = "link" })
+    end,
+})
+LoadDiscordInfo()
+IntroTab:Paragraph({ Title = gradient("Credits Main"), Content = "" })
+IntroTab:Paragraph({ Title = "* lwkmash -> Main Developer\n* Rezo Hub Team -> Support & Ideas\n* Thank you for using Rezo Hub!", Content = "" })
+IntroTab:Paragraph({ Title = gradient("Information"), Content = "" })
+IntroTab:Paragraph({ Title = "-> Rezo Hub is the official free script hub for Sell Lemons.\n-> Any attempts to copy this script will lead to DMCA.\n-> Do not proclaim this as your own script.", Content = "" })
+IntroTab:Paragraph({ Title = gradient("Features"), Content = "" })
+IntroTab:Paragraph({ Title = "-> 40+ Auto Features including Buy, Upgrade, Fruit, Rebirth, Evolve, Ascend\n-> Phone Offers, NPC Deals, Sewer Runs, Key Collection\n-> Purity Fruit, Cosmic Cash, Badges, Powers\n-> FPS Boost, Anti-AFK, Auto Rejoin, Server Hop", Content = "" })
+IntroTab:Paragraph({ Title = gradient("Discord"), Content = "" })
+IntroTab:Paragraph({ Title = "-> Join our Discord for updates and support!\n-> discord.gg/qTAhZpvtgt\n-> Rezo Hub - Sell Lemons", Content = "" })
+IntroTab:Button({
+    Title    = "Copy Discord Link",
+    Callback = function()
+        setclipboard("https://discord.gg/qTAhZpvtgt")
+        notify("Discord link copied!")
+    end,
+})
+local MainTab = Window:Tab({ Title = gradient("Main"), Icon = "zap" })
+MainTab:Section({ Title = "- Core Automation -" })
+MainTab:Toggle({
+    Title = "Auto Buy",
+    Description = "Instantly buys all affordable items in your tycoon.",
+    Default = false,
+    Callback = function(Value)
+        AutoBuy = Value
+        notify("Auto Buy " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Upgrade",
+    Description = "Automatically upgrades all machines to the highest level.",
+    Default = false,
+    Callback = function(Value)
+        AutoUpgrade = Value
+        notify("Auto Upgrade " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Fruit",
+    Description = "Teleports to lemon trees and collects all fruit.",
+    Default = false,
+    Callback = function(Value)
+        AutoFruit = Value
+        notify("Auto Fruit " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Collect Cash Bags",
+    Description = "Automatically collects cash bags that spawn around the map.",
+    Default = false,
+    Callback = function(Value)
+        AutoCollectCash = Value
+        notify("Auto Collect Cash " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Collect Cosmic Cash",
+    Description = "Collects cosmic cash drops and rewards.",
+    Default = false,
+    Callback = function(Value)
+        AutoCollectCosmic = Value
+        notify("Auto Cosmic Cash " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Cash Bags",
+    Description = "Collects all cash bags on the ground instantly.",
+    Default = false,
+    Callback = function(Value)
+        AutoCashBags = Value
+        notify("Auto Cash Bags " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Section({ Title = "- Income Source Automation -" })
+MainTab:Toggle({
+    Title = "Auto Lemon Stand",
+    Description = "Automates the base Lemon Stand.",
+    Default = true,
+    Callback = function(Value)
+        notify("Auto Lemon Stand " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto LemonDash",
+    Description = "Automates the LemonDash income source.",
+    Default = false,
+    Callback = function(Value)
+        AutoLemonDash = Value
+        notify("Auto LemonDash " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Depot",
+    Description = "Automates the Lemon Depot.",
+    Default = false,
+    Callback = function(Value)
+        AutoDepot = Value
+        notify("Auto Depot " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Trading",
+    Description = "Automates the Trading Floor.",
+    Default = false,
+    Callback = function(Value)
+        AutoTrading = Value
+        notify("Auto Trading " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Lab",
+    Description = "Automates the Lab income source.",
+    Default = false,
+    Callback = function(Value)
+        AutoLab = Value
+        notify("Auto Lab " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Robotics",
+    Description = "Automates the Robotics income source.",
+    Default = false,
+    Callback = function(Value)
+        AutoRobotics = Value
+        notify("Auto Robotics " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Republic",
+    Description = "Automates the Lemon Republic.",
+    Default = false,
+    Callback = function(Value)
+        AutoRepublic = Value
+        notify("Auto Republic " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto LemonX",
+    Description = "Automates the LemonX endgame source.",
+    Default = false,
+    Callback = function(Value)
+        AutoLemonX = Value
+        notify("Auto LemonX " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Section({ Title = "- Manager Automation -" })
+MainTab:Toggle({
+    Title = "Auto Hire Managers",
+    Description = "Automatically hires managers for all income sources.",
+    Default = false,
+    Callback = function(Value)
+        AutoManagerHire = Value
+        notify("Auto Hire Managers " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Speed Upgrade",
+    Description = "Prioritizes speed upgrades for all sources.",
+    Default = false,
+    Callback = function(Value)
+        AutoSpeedUpgrade = Value
+        notify("Auto Speed Upgrade " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+MainTab:Toggle({
+    Title = "Auto Capacity Upgrade",
+    Description = "Prioritizes capacity upgrades for all sources.",
+    Default = false,
+    Callback = function(Value)
+        AutoCapacityUpgrade = Value
+        notify("Auto Capacity Upgrade " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+local RebirthTab = Window:Tab({ Title = gradient("Rebirth"), Icon = "refresh-cw" })
+RebirthTab:Section({ Title = "- Rebirth Automation -" })
+local RebirthGainMultiple = 1.0
+local RebirthMultMode = false
+local RebirthInvestorMultiple = 10
+local MinPotential = 1
+local RebirthCooldown = 2
+local RebirthTimeout = 8
+local rebirthBusy = false
+RebirthTab:Toggle({
+    Title = "Auto Rebirth",
+    Description = "Rebirths automatically when the investor gain is worth it.",
+    Default = false,
+    Callback = function(Value)
+        AutoRebirth = Value
+        if Value and not getRebirthRemote() then
+            notify("Rebirth remote not found!", 5)
+            return
+        end
+        notify("Auto Rebirth " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+RebirthTab:Toggle({
+    Title = "Rebirth only at big multiple",
+    Description = "Only rebirth when investors gained meet the set multiplier.",
+    Default = false,
+    Callback = function(Value)
+        RebirthMultMode = Value
+        notify("Rebirth Multiple Gate " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+RebirthTab:Input({
+    Title = "Rebirth at X times current investors",
+    Description = "Set the multiplier used when the big-multiple gate is on.",
+    Placeholder = "e.g. 10",
+    Default = "10",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        local n = tonumber((tostring(Text):gsub("[^%d%.]", "")))
+        if n and n > 0 then
+            RebirthInvestorMultiple = n
+            notify("Will rebirth at " .. n .. "x current investors")
+        else
+            notify("Enter a number > 0")
+        end
+    end,
+})
+RebirthTab:Input({
+    Title = "Minimum Potential Investors",
+    Description = "Minimum potential investors required before rebirthing.",
+    Placeholder = "e.g. 1",
+    Default = "1",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        local n = tonumber((tostring(Text):gsub("[^%d%.]", "")))
+        if n and n > 0 then
+            MinPotential = n
+            notify("Min Potential set to " .. n)
+        end
+    end,
+})
+RebirthTab:Input({
+    Title = "Rebirth Cooldown (seconds)",
+    Description = "Wait time between rebirths.",
+    Placeholder = "2",
+    Default = "2",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        local n = tonumber((tostring(Text):gsub("[^%d%.]", "")))
+        if n and n > 0 then
+            RebirthCooldown = n
+            notify("Rebirth cooldown: " .. n .. "s")
+        end
+    end,
+})
+RebirthTab:Section({ Title = "- Investor Optimization -" })
+RebirthTab:Toggle({
+    Title = "Auto Maximize Investors",
+    Description = "Waits for maximum possible investors before rebirthing.",
+    Default = false,
+    Callback = function(Value)
+        AutoInvestorMax = Value
+        notify("Auto Max Investors " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+RebirthTab:Toggle({
+    Title = "Auto Alien Investor",
+    Description = "Automatically accepts alien investor deals for bonus investors.",
+    Default = false,
+    Callback = function(Value)
+        AutoAlienInvestor = Value
+        notify("Auto Alien Investor " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+local EvoTab = Window:Tab({ Title = gradient("Evolve & Ascend"), Icon = "trending-up" })
+EvoTab:Section({ Title = "- Evolution -" })
+local EvolveAt = 100
+local EvolveCooldown = 2
+local EvolveTimeout = 8
+local evolveBusy = false
+EvoTab:Toggle({
+    Title = "Auto Evolve (x10 income)",
+    Description = "Evolves when the evolution progress bar is full.",
+    Default = false,
+    Callback = function(Value)
+        AutoEvolve = Value
+        if Value and not getEvolveRemote() then
+            notify("Evolve remote not found!", 5)
+            return
+        end
+        notify("Auto Evolve " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+EvoTab:Input({
+    Title = "Evolve At Progress %",
+    Description = "Evolve when progress reaches this percentage.",
+    Placeholder = "100",
+    Default = "100",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        local n = tonumber((tostring(Text):gsub("[^%d%.]", "")))
+        if n and n > 0 then
+            EvolveAt = n
+            notify("Evolve at " .. n .. "%")
+        end
+    end,
+})
+EvoTab:Section({ Title = "- Ascension -" })
+local AscendCooldown = 2
+local AscendTimeout = 8
+local ascendBusy = false
+EvoTab:Toggle({
+    Title = "Auto Ascend (all-purchases reset)",
+    Description = "Ascends for a permanent cash multiplier once all items are bought.",
+    Default = false,
+    Callback = function(Value)
+        AutoAscend = Value
+        if Value and not getAscendRemote() then
+            notify("Ascend remote not found!", 5)
+            return
+        end
+        notify("Auto Ascend " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+EvoTab:Toggle({
+    Title = "Auto Stairway Builder",
+    Description = "Automatically builds the stairway when requirements are met.",
+    Default = false,
+    Callback = function(Value)
+        AutoStairway = Value
+        notify("Auto Stairway " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+EvoTab:Toggle({
+    Title = "Auto Forever Purchase",
+    Description = "Automatically claims forever purchase tokens on ascend.",
+    Default = false,
+    Callback = function(Value)
+        AutoForeverPurchase = Value
+        notify("Auto Forever Purchase " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+EvoTab:Toggle({
+    Title = "Auto Evolution Points",
+    Description = "Automatically spends evolution points on optimal upgrades.",
+    Default = false,
+    Callback = function(Value)
+        AutoEvolutionPoints = Value
+        notify("Auto Evo Points " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+EvoTab:Toggle({
+    Title = "Auto Cosmic Cash Farm",
+    Description = "Farms cosmic cash efficiently after 100th ascend.",
+    Default = false,
+    Callback = function(Value)
+        AutoCosmicCashFarm = Value
+        notify("Auto Cosmic Farm " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+EvoTab:Toggle({
+    Title = "Auto Purity Fruit",
+    Description = "Attempts to obtain the legendary Purity Fruit.",
+    Default = false,
+    Callback = function(Value)
+        AutoPurityFruit = Value
+        notify("Auto Purity Fruit " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+local PowersTab = Window:Tab({ Title = gradient("Powers"), Icon = "bolt" })
+PowersTab:Section({ Title = "- Power Automation -" })
+PowersTab:Toggle({
+    Title = "Auto Power Level",
+    Description = "Continuously upgrades your power level.",
+    Default = false,
+    Callback = function(Value)
+        AutoPowerLevel = Value
+        notify("Auto Power Level " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PowersTab:Toggle({
+    Title = "Auto Unlock Powers",
+    Description = "Automatically unlocks new powers as they become available.",
+    Default = false,
+    Callback = function(Value)
+        AutoPowerUnlock = Value
+        notify("Auto Unlock Powers " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PowersTab:Toggle({
+    Title = "Auto Run Fast",
+    Description = "Automatically activates run fast power when available.",
+    Default = false,
+    Callback = function(Value)
+        AutoRunFast = Value
+        notify("Auto Run Fast " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PowersTab:Toggle({
+    Title = "Auto Buy Remotely",
+    Description = "Automatically activates remote buying power.",
+    Default = false,
+    Callback = function(Value)
+        AutoBuyRemotely = Value
+        notify("Auto Buy Remote " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PowersTab:Toggle({
+    Title = "Auto Double Speed",
+    Description = "Automatically activates double income speed power.",
+    Default = false,
+    Callback = function(Value)
+        AutoDoubleSpeed = Value
+        notify("Auto Double Speed " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PowersTab:Section({ Title = "- Power Settings -" })
+PowersTab:Input({
+    Title = "Power Level Priority",
+    Description = "Which power to prioritize (1-5).",
+    Placeholder = "1",
+    Default = "1",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        notify("Power priority set to " .. Text)
+    end,
+})
+local NPCTab = Window:Tab({ Title = gradient("NPC & Deals"), Icon = "users" })
+NPCTab:Section({ Title = "- Phone & NPC Automation -" })
+NPCTab:Toggle({
+    Title = "Auto Accept Phone Offers",
+    Description = "Instantly accepts income boost phone offers.",
+    Default = false,
+    Callback = function(Value)
+        AutoPhoneOffers = Value
+        notify("Auto Phone Offers " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+NPCTab:Toggle({
+    Title = "Auto NPC Deals",
+    Description = "Automatically accepts favorable NPC deals.",
+    Default = false,
+    Callback = function(Value)
+        AutoNPCDeals = Value
+        notify("Auto NPC Deals " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+NPCTab:Toggle({
+    Title = "Auto Deal Counter",
+    Description = "Counters NPC offers for better deals when possible.",
+    Default = false,
+    Callback = function(Value)
+        AutoDealCounter = Value
+        notify("Auto Deal Counter " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+NPCTab:Section({ Title = "- Deal Settings -" })
+NPCTab:Toggle({
+    Title = "Accept Multiplier Deals Only",
+    Description = "Only accept deals that give permanent multipliers.",
+    Default = false,
+    Callback = function(Value)
+        notify("Multiplier-only deals " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+NPCTab:Toggle({
+    Title = "Accept Cosmic Cash Deals",
+    Description = "Always accept deals offering Cosmic Cash.",
+    Default = true,
+    Callback = function(Value)
+        notify("Cosmic deals " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+NPCTab:Input({
+    Title = "Minimum Deal Value",
+    Description = "Only accept deals worth at least this much.",
+    Placeholder = "0",
+    Default = "0",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        notify("Min deal value: " .. Text)
+    end,
+})
+local SewerTab = Window:Tab({ Title = gradient("Sewer & Secrets"), Icon = "key" })
+SewerTab:Section({ Title = "- Sewer Automation -" })
+SewerTab:Toggle({
+    Title = "Auto Sewer Run",
+    Description = "Full sewer automation: levers, keys, vine, alien.",
+    Default = false,
+    Callback = function(Value)
+        AutoSewerRun = Value
+        notify("Auto Sewer Run " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SewerTab:Toggle({
+    Title = "Auto Pull Levers",
+    Description = "Pulls all sewer levers automatically.",
+    Default = false,
+    Callback = function(Value)
+        AutoPullLevers = Value
+        notify("Auto Pull Levers " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SewerTab:Toggle({
+    Title = "Auto Lever Sequence",
+    Description = "Follows the exact 7-step lever sequence for Sewer Key.",
+    Default = false,
+    Callback = function(Value)
+        AutoLeverSequence = Value
+        notify("Auto Lever Sequence " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SewerTab:Toggle({
+    Title = "Auto UFO Key",
+    Description = "Automatically collects the UFO Key from sewer.",
+    Default = false,
+    Callback = function(Value)
+        AutoUFOKey = Value
+        notify("Auto UFO Key " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SewerTab:Toggle({
+    Title = "Auto Sewer Key",
+    Description = "Automatically collects the Sewer Key.",
+    Default = false,
+    Callback = function(Value)
+        AutoSewerKey = Value
+        notify("Auto Sewer Key " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SewerTab:Section({ Title = "- Secret Actions -" })
+SewerTab:Button({
+    Title = "Pull All Levers (sewer)",
+    Description = "Pulls all sewer levers and grabs the keys from where you stand.",
+    Callback = function()
+        local n = pullAllLevers()
+        notify(n > 0 and ("Pulled " .. n .. " lever(s) + grabbed keys") or "No levers found!")
+    end,
+})
+SewerTab:Button({
+    Title = "Vine Harvest",
+    Description = "Pulls levers, grabs keys, opens the vine door, and harvests the CashVine.",
+    Callback = function()
+        notify("Running Vine Harvest...")
+        task.spawn(function()
+            local ok, err = doSewerRun()
+            notify(ok and "Vine Harvest complete!" or ("Failed: " .. tostring(err)))
+        end)
+    end,
+})
+SewerTab:Button({
+    Title = "Teleport to Sewer Alien",
+    Description = "Teleports directly to the UFO sewer alien collectible.",
+    Callback = function()
+        local ok, err = teleportToAlien()
+        notify(ok and "Teleported to sewer alien!" or ("Failed: " .. tostring(err)))
+    end,
+})
+SewerTab:Button({
+    Title = "Execute Lever Sequence",
+    Description = "Blue->Red->Green->Red(unpull)->Blue(unpull)->Purple->Red",
+    Callback = function()
+        executeLeverSequence()
+        notify("Lever sequence executed!")
+    end,
+})
+local BadgesTab = Window:Tab({ Title = gradient("Badges"), Icon = "award" })
+BadgesTab:Section({ Title = "- Badge Automation -" })
+BadgesTab:Toggle({
+    Title = "Auto Collect Badges",
+    Description = "Automatically collects all available badges.",
+    Default = false,
+    Callback = function(Value)
+        AutoCollectBadges = Value
+        notify("Auto Badges " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+BadgesTab:Toggle({
+    Title = "Auto Good Samaritan",
+    Description = "Attempts to get the Good Samaritan badge.",
+    Default = false,
+    Callback = function(Value)
+        AutoGoodSamaritan = Value
+        notify("Auto Good Samaritan " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+BadgesTab:Toggle({
+    Title = "Auto Cosmic Farmer",
+    Description = "Attempts to get the Cosmic Farmer badge.",
+    Default = false,
+    Callback = function(Value)
+        AutoCosmicFarmer = Value
+        notify("Auto Cosmic Farmer " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+BadgesTab:Toggle({
+    Title = "Auto Hidden Badges",
+    Description = "Collects all hidden/secret badges.",
+    Default = false,
+    Callback = function(Value)
+        AutoHiddenBadges = Value
+        notify("Auto Hidden Badges " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+BadgesTab:Section({ Title = "- Badge Info -" })
+BadgesTab:Paragraph({ Title = "Available Badges", Content = "-> Lemon Stand Badge (100% players)\n-> Wholesale Lemons (96.1%)\n-> Trillionaire (72.3%)\n-> Purity (0.0% - ~20 players globally)\n-> Cosmic Farmer\n-> Good Samaritan\n-> UFO Key Badge\n-> Sewer Key Badge" })
+local PlayerTab = Window:Tab({ Title = gradient("Player"), Icon = "user" })
+PlayerTab:Section({ Title = "- Character Mods -" })
+PlayerTab:Input({
+    Title = "Walk Speed",
+    Description = "Set your character walk speed.",
+    Placeholder = "16",
+    Default = "16",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        local n = tonumber(Text)
+        if n then
+            WalkSpeed = n
+            local char = LocalPlayer.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.WalkSpeed = n end
+            end
+            notify("WalkSpeed set to " .. n)
+        end
+    end,
+})
+PlayerTab:Input({
+    Title = "Jump Power",
+    Description = "Set your character jump power.",
+    Placeholder = "50",
+    Default = "50",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Text)
+        local n = tonumber(Text)
+        if n then
+            JumpPower = n
+            local char = LocalPlayer.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.JumpPower = n end
+            end
+            notify("JumpPower set to " .. n)
+        end
+    end,
+})
+PlayerTab:Toggle({
+    Title = "Infinite Jump",
+    Description = "Jump infinitely without touching ground.",
+    Default = false,
+    Callback = function(Value)
+        InfiniteJump = Value
+        notify("Infinite Jump " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PlayerTab:Toggle({
+    Title = "Noclip",
+    Description = "Walk through walls and objects.",
+    Default = false,
+    Callback = function(Value)
+        Noclip = Value
+        notify("Noclip " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PlayerTab:Toggle({
+    Title = "Hide Name",
+    Description = "Hides your display name from other players.",
+    Default = false,
+    Callback = function(Value)
+        AutoHideName = Value
+        notify("Hide Name " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+PlayerTab:Section({ Title = "- Teleport -" })
+PlayerTab:Button({
+    Title = "Teleport to Sewer",
+    Description = "Teleport to the sewer entrance.",
+    Callback = function()
+        teleportToSewer()
+        notify("Teleported to Sewer!")
+    end,
+})
+PlayerTab:Button({
+    Title = "Teleport to Tycoon",
+    Description = "Teleport back to your tycoon.",
+    Callback = function()
+        teleportToTycoon()
+        notify("Teleported to Tycoon!")
+    end,
+})
+PlayerTab:Button({
+    Title = "Teleport to Alien",
+    Description = "Teleport to the alien UFO location.",
+    Callback = function()
+        teleportToAlien()
+        notify("Teleported to Alien!")
+    end,
+})
+local SettingsTab = Window:Tab({ Title = gradient("Settings"), Icon = "settings" })
+SettingsTab:Section({ Title = "- Performance -" })
+SettingsTab:Toggle({
+    Title = "FPS Boost",
+    Description = "Optimizes game for maximum FPS.",
+    Default = false,
+    Callback = function(Value)
+        AutoFPSBoost = Value
+        if Value then
+            pcall(function()
+                settings().Rendering.QualityLevel = 1
+                game:GetService("Lighting").GlobalShadows = false
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic end
+                end
+            end)
+        end
+        notify("FPS Boost " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Toggle({
+    Title = "Low Graphics Mode",
+    Description = "Reduces graphics quality for better performance.",
+    Default = false,
+    Callback = function(Value)
+        AutoLowGraphics = Value
+        if Value then
+            pcall(function()
+                settings().Rendering.QualityLevel = 1
+                game:GetService("Lighting").Brightness = 1
+                game:GetService("Lighting").GlobalShadows = false
+                game:GetService("Lighting").FogEnd = 1000
+            end)
+        end
+        notify("Low Graphics " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Toggle({
+    Title = "Anti-AFK",
+    Description = "Prevents being kicked for inactivity. Always on by default.",
+    Default = true,
+    Callback = function(Value)
+        AntiAFK = Value
+        notify("Anti-AFK " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Toggle({
+    Title = "Auto Rejoin",
+    Description = "Rejoins the same server automatically if disconnected.",
+    Default = false,
+    Callback = function(Value)
+        AutoRejoin = Value
+        notify("Auto Rejoin " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Toggle({
+    Title = "Server Hop",
+    Description = "Automatically hops to a new server if current is full/laggy.",
+    Default = false,
+    Callback = function(Value)
+        AutoServerHop = Value
+        notify("Server Hop " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Toggle({
+    Title = "Anti Kick",
+    Description = "Prevents most kick attempts from the server.",
+    Default = false,
+    Callback = function(Value)
+        AutoAntiKick = Value
+        notify("Anti Kick " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Toggle({
+    Title = "Anti Log",
+    Description = "Prevents the game from logging your actions.",
+    Default = false,
+    Callback = function(Value)
+        AutoAntiLog = Value
+        notify("Anti Log " .. (Value and "Enabled" or "Disabled"))
+    end,
+})
+SettingsTab:Section({ Title = "- UI Settings -" })
+SettingsTab:Button({
+    Title = "Destroy GUI",
+    Description = "Closes and destroys the Rezo Hub window.",
+    Callback = function()
+        Window:Destroy()
+    end,
+})
+SettingsTab:Button({
+    Title = "Reset UI Position",
+    Description = "Resets the UI to default position.",
+    Callback = function()
+        pcall(function() Window:SetPosition(UDim2.fromOffset(100, 100)) end)
+        notify("UI position reset!")
+    end,
+})
+SettingsTab:Button({
+    Title = "Minimize UI",
+    Description = "Minimizes the UI to the open button.",
+    Callback = function()
+        pcall(function() Window:Minimize() end)
+        notify("UI minimized!")
+    end,
+})
+local Buying = false
+local function buyAllAffordable()
+    for _, obj in ipairs(userTycoon.Purchases:GetDescendants()) do
+        if obj:IsA("Model") then
+            local shown = obj:GetAttribute("Shown")
+            local purchased = obj:GetAttribute("Purchased")
+            if shown == true and purchased ~= true then
+                local purchase = obj:FindFirstChild("Purchase")
+                if purchase and purchase:IsA("RemoteFunction") then
+                    pcall(function() purchase:InvokeServer() end)
+                    stats.buys = stats.buys + 1
+                end
+            end
+        end
+    end
+end
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+        if AutoBuy then pcall(buyAllAffordable) end
+    end
+end)
+local upgradeRemotes = {}
+local upgradeLevel = {}
+local lastUpgradeScan = 0
+local function refreshUpgradeRemotes()
+    upgradeRemotes = {}
+    upgradeLevel = {}
+    local purchases = userTycoon:FindFirstChild("Purchases")
+    if not purchases then return end
+    for _, obj in ipairs(purchases:GetDescendants()) do
+        if obj:IsA("RemoteFunction") and obj.Name == "Upgrade" then
+            upgradeRemotes[#upgradeRemotes + 1] = obj
+        end
+    end
+end
+task.spawn(function()
+    while true do
+        task.wait(0.25)
+        if AutoUpgrade then
+            if tick() - lastUpgradeScan > 3 then
+                refreshUpgradeRemotes()
+                lastUpgradeScan = tick()
+            end
+            for _, remote in ipairs(upgradeRemotes) do
+                if remote.Parent then
+                    local lvl = (upgradeLevel[remote] or 0) + 1
+                    while lvl <= 100 do
+                        local ok, res = pcall(function() return remote:InvokeServer(lvl) end)
+                        if (not ok) or res == false then break end
+                        upgradeLevel[remote] = lvl
+                        stats.upgrades = stats.upgrades + 1
+                        lvl = lvl + 1
+                    end
+                end
+            end
+        end
+    end
+end)
+local function getPowerLevelRemote()
+    local remotes = userTycoon:FindFirstChild("Remotes")
+    return remotes and remotes:FindFirstChild("UpgradePowerLevel")
+end
+task.spawn(function()
+    while true do
+        task.wait(0.25)
+        if AutoPowerLevel then
+            local remote = getPowerLevelRemote()
+            if remote then
+                pcall(function() remote:InvokeServer() end)
+            end
+        end
+    end
+end)
+local function getRebirthRemote()
+    local remotes = userTycoon:FindFirstChild("Remotes")
+    return remotes and remotes:FindFirstChild("Rebirth")
+end
+local function getRebirthedSignal()
+    local remotes = userTycoon:FindFirstChild("Remotes")
+    return remotes and remotes:FindFirstChild("Rebirthed")
+end
+local NUM_SCALE = {
+    thousand=1e3, million=1e6, billion=1e9, trillion=1e12, quadrillion=1e15, quintillion=1e18, sextillion=1e21, septillion=1e24, octillion=1e27, nonillion=1e30, decillion=1e33, undecillion=1e36, duodecillion=1e39, tredecillion=1e42, quattuordecillion=1e45, quindecillion=1e48, sexdecillion=1e51, septendecillion=1e54, octodecillion=1e57, novemdecillion=1e60, vigintillion=1e63, k=1e3, m=1e6, b=1e9, t=1e12, qd=1e15, qn=1e18, sx=1e21, sp=1e24,
+}
+do
+    local BASE = {
+        [0]="thousand",[1]="million",[2]="billion",[3]="trillion",[4]="quadrillion", [5]="quintillion",[6]="sextillion",[7]="septillion",[8]="octillion",[9]="nonillion", [10]="decillion",[11]="undecillion",[12]="duodecillion",[13]="tredecillion", [14]="quattuordecillion",[15]="quindecillion",[16]="sexdecillion", [17]="septendecillion",[18]="octodecillion",[19]="novemdecillion",
+    }
+    local ROOT = {
+        [2]="vigintillion",[3]="trigintillion",[4]="quadragintillion",[5]="quinquagintillion", [6]="sexagintillion",[7]="septuagintillion",[8]="octogintillion",[9]="nonagintillion", [10]="centillion",
+    }
+    local PREFIX = {}
+end
